@@ -227,8 +227,8 @@ def MI_ffy(i, j, k):
     sumf = 0
     ra_new = np.zeros([features_nrows, features_nrows])
     ra_new1 = np.zeros([features_nrows, features_nrows])
-    r_s = R_f(k)
-    r_l = R_l(j)
+    r_s = R_f(j)
+    r_l = R_l(k)
     for m in range(0, features_nrows):
         for n in range(0, features_nrows):
             if r_s[m][n] < r_l[m][n]:
@@ -252,10 +252,32 @@ def MI_ffy(i, j, k):
         sumf = sumf + math.log(sumf1 / sumf2)
     sum = -1 * sumf / features_nrows
     mi_fn = hf - sum
-    mI_lf = hf - H_f_l(i, j)
+    mI_lf = hf - H_f_l(i, k)
     mi = mi_fn - mI_lf
     return mi
 
+def MI_ff(i, j):
+    sumf = 0
+    ra_new = np.zeros([features_nrows, features_nrows])
+    hs = fun_Haj(j)
+    r_f = R_f(i)
+    r_s = R_f(j)
+    for m in range(0, features_nrows):
+        for n in range(0, features_nrows):
+            if r_f[m][n] < r_s[m][n]:
+                ra_new[m][n] = r_f[m][n]
+            else:
+                ra_new[m][n] = r_s[m][n]
+    for m in range(0, features_nrows):
+        sumf1 = 0
+        sumf2 = 0
+        for n in range(0, features_nrows):
+            sumf1 = sumf1 + ra_new[m][n]
+            sumf2 = sumf2 + r_f[m][n]
+        sumf = sumf + math.log(sumf1 / sumf2)
+    sum = -1 * sumf / features_nrows
+    mi = hs - sum
+    return mi
 
 if __name__=="__main__":
     max = 0
@@ -278,7 +300,7 @@ if __name__=="__main__":
     s = 0
     print(flag_cov)
     print(S)
-    while s < 6:
+    while s < 9:
         flag_maxC1 = flag_maxC
         s += 1
         maxI = -999
@@ -287,21 +309,23 @@ if __name__=="__main__":
             if i not in flag_cov:
                 Mi = 0
                 mR1 = 0
+                sum = 0
                 for j in range(0, feature_ncols):
                     if j in flag_cov:
+                        sum1 = 0
                         haj = fun_Haj(j)
                         hji = H_f_f(i, j)
                         mR1 = mR1 + haj - hji
-                for j in range(0, labels_ncols):
-                    Mi_sfl = 0
-                    mi_fl = Hl(j) - H_l_f(i, j)
-                    for k in range(0, feature_ncols):
-                        if k in flag_cov:
-                            Mi_sfl = Mi_sfl + MI_ffy(i, j, k)
-                    Mi = Mi + (mi_fl - mR1 / s + Mi_sfl / s)
-                if Mi > maxI:
-                    maxI = Mi
-                    flag_t = i
+                        for k in range(0, labels_ncols):
+                            mi_fl = Hl(k) - H_l_f(i, k)
+                            mi_sl = Hl(k) - H_l_f(j, k)
+                            mi_fs = MI_ff(i, j)
+                            mi_fsl = MI_ffy(i, j, k)
+                            sum1 = sum1 + ( mi_fl + mi_sl - 3 * mi_fs + 2 * mi_fsl )
+                        sum = sum + sum1
+                        if sum > maxI:
+                            maxI = sum
+                            flag_t = i
         for j in range(0, features_nrows):
             S[j][flag_t] = feature.cell(j, flag_t).value
         # print(flag_a)
