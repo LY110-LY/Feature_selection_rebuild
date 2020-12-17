@@ -1,0 +1,195 @@
+import numpy as np
+import xlrd
+import math
+
+workbook = xlrd.open_workbook(r'Yeast_cdc_feature.xlsx')
+workbook2 = xlrd.open_workbook(r'Yeast_cdc_labels.xlsx')
+# print(workbook2.sheet_names())#输出页签名r
+
+feature = workbook.sheet_by_name('features')
+labels = workbook2.sheet_by_name('labels')
+features_nrows = feature.nrows
+feature_ncols = feature.ncols
+labels_nrows = labels.nrows
+labels_ncols = labels.ncols
+
+def fun_maxC(i):
+    r_new = np.zeros([features_nrows, features_nrows])
+    rD = np.zeros([features_nrows, features_nrows])
+    r = np.zeros([features_nrows, features_nrows])
+# for i in range(0, feature_ncols):
+    max = 0
+    min = 999
+    sumk1 = np.zeros([features_nrows, 1])
+    for t in range(0, features_nrows):
+        if feature.cell(t, i).value > max:
+            max = feature.cell(t, i).value
+        if feature.cell(t, i).value < min:
+            min = feature.cell(t, i).value
+    for j in range(0, features_nrows):
+        sum4 = 0
+        for k in range(0, features_nrows):
+            if abs(feature.cell(j, i).value - feature.cell(k, i).value) / abs(max - min) <= 0.25:
+                r[j][k] = 1 - 4 * abs(feature.cell(j, i).value - feature.cell(k, i).value) / abs(max - min)
+                r[k][j] = 1 - 4 * abs(feature.cell(j, i).value - feature.cell(k, i).value) / abs(max - min)
+                sum4 = sum4 + r[j][k]
+            else:
+                r[j][k] = 0
+                r[k][j] = 0
+        sumk1[j][0] = sum4
+    maxC1 = 0
+    for m in range(0, labels_ncols):
+        for j in range(0, features_nrows):
+            for k in range(0, features_nrows):
+                if abs(labels.cell(j, m).value - labels.cell(k, m).value) <= 0.25:
+                    rD[k][j] = 1 - 4 * abs(labels.cell(j, m).value - labels.cell(k, m).value)
+                    rD[j][k] = 1 - 4 * abs(labels.cell(j, m).value - labels.cell(k, m).value)
+                else:
+                    rD[j][k] = 0
+                    rD[k][j] = 0
+        #信息量
+        sum2 = 0
+        for j in range(0, features_nrows):
+            sum1 = 0
+            for k in range(0, features_nrows):
+                sum1 = sum1 + rD[j][k]
+            sum2 = sum2 + math.log(sum1 / features_nrows)
+        H_RD = -1 * sum2 / features_nrows
+
+        sum5 = 0
+        for j in range(0, features_nrows):
+            sum3 = 0
+            for k in range(0, features_nrows):
+                if r[j][k] < rD[j][k]:
+                    r_new[j][k] = r[j][k]
+                else:
+                    r_new[j][k] = rD[j][k]
+                sum3 = sum3 + r_new[j][k]
+            sum5 = sum5 + math.log(sum3 / sumk1[j][0])
+        #H(D|B)
+        sum6 = -1 * sum5 / features_nrows
+        #MI(ai; dj)
+        maxC1 = maxC1 + (H_RD - sum6)
+    maxC2 = maxC1 / labels_ncols
+    # maxC.append(maxC2)
+    return maxC2
+
+def fun_Haj(flag):
+    max = 0
+    min = 999
+    r_a = np.zeros([features_nrows, features_nrows])
+    haj_sumk1 = np.zeros([features_nrows, 1])
+    for t in range(0, features_nrows):
+        if feature.cell(t, flag).value > max:
+            max = feature.cell(t, flag).value
+        if feature.cell(t, flag).value < min:
+            min = feature.cell(t, flag).value
+
+    for j in range(0, features_nrows):
+        haj_sum4 = 0
+        for k in range(0, features_nrows):
+            if abs(feature.cell(j, flag).value - feature.cell(k, flag).value) / abs(max - min) <= 0.25:
+                r_a[j][k] = 1 - 4 * abs(feature.cell(j, flag).value - feature.cell(k, flag).value) / abs(max - min)
+                r_a[k][j] = 1 - 4 * abs(feature.cell(j, flag).value - feature.cell(k, flag).value) / abs(max - min)
+                haj_sum4 = haj_sum4 + r_a[j][k]
+            else:
+                r_a[j][k] = 0
+                r_a[k][j] = 0
+        haj_sumk1[j][0] = haj_sum4
+    haj_sum5 = 0
+    for j in range(0, features_nrows):
+        haj_sum5 = haj_sum5 + math.log(haj_sumk1[j][0] / features_nrows)
+    haj_sum6 = -1 * haj_sum5 / features_nrows
+    return haj_sum6
+
+def R_f(flag):
+    max = 0
+    min = 999
+    r_a = np.zeros([features_nrows, features_nrows])
+    for t in range(0, features_nrows):
+        if feature.cell(t, flag).value > max:
+            max = feature.cell(t, flag).value
+        if feature.cell(t, flag).value < min:
+            min = feature.cell(t, flag).value
+
+    for j in range(0, features_nrows):
+        # haj_sum4 = 0
+        for k in range(0, features_nrows):
+            if abs(feature.cell(j, flag).value - feature.cell(k, flag).value) / abs(max - min) <= 0.25:
+                r_a[j][k] = 1 - 4 * abs(feature.cell(j, flag).value - feature.cell(k, flag).value) / abs(max - min)
+                r_a[k][j] = 1 - 4 * abs(feature.cell(j, flag).value - feature.cell(k, flag).value) / abs(max - min)
+                # haj_sum4 = haj_sum4 + r_a[j][k]
+            else:
+                r_a[j][k] = 0
+                r_a[k][j] = 0
+    return r_a
+
+def H_f_f(i, j):
+    sumf1 = 0
+    sumf2 = 0
+    sumf = 0
+    sum = 0
+    ra_new = np.zeros([features_nrows, features_nrows])
+    r_ai = R_f(i)
+    r_aj = R_f(j)
+    for m in range(0, features_nrows):
+        for n in range(0, features_nrows):
+            if r_ai[m][n] < r_aj[m][n]:
+                ra_new[m][n] = r_ai[m][n]
+            else:
+                ra_new[m][n] = r_aj[m][n]
+    for m in range(0, features_nrows):
+        for n in range(0, features_nrows):
+            sumf1 = sumf1 + ra_new[m][n]
+            sumf2 = sumf2 + r_ai[m][n]
+        sumf = sumf + math.log(sumf1 / sumf2)
+    sum = -1 * sumf / features_nrows
+    return sum
+
+
+if __name__=="__main__":
+    max = 0
+    flag_MC = 0
+    flag_maxC = []
+    for i in range(0, feature_ncols):
+        maxCC2 = fun_maxC(i)
+        flag_maxC.append(maxCC2)
+        print(maxCC2)
+        if maxCC2 > max:
+            max = maxCC2
+            flag_MC = i
+    print("LALALA")
+    print(flag_MC)
+    S = np.zeros([features_nrows, feature_ncols])
+    for j in range(0, features_nrows):
+        S[j][flag_MC] = feature.cell(j, flag_MC).value
+    flag_cov = []
+    flag_cov.append(flag_MC)
+    s = 0
+    print(flag_cov)
+    print(S)
+    while s < 2220:
+        flag_maxC1 = flag_maxC
+        s += 1
+        maxI = -999
+        flag_t = 0
+        for i in range(0, feature_ncols):
+            if i not in flag_cov:
+                mR1 = 0
+                for j in range(0, feature_ncols):
+                    if j in flag_cov:
+                        haj = fun_Haj(j)
+                        hji = H_f_f(i, j)
+                        mR1 = mR1 + haj - hji
+                mR = mR1 / s
+                flag_maxC1[i] = flag_maxC1[i] - mR
+        for i in range(0, feature_ncols):
+            if flag_maxC1[i] > maxI and i not in flag_cov:
+                maxI = flag_maxC1[i]
+                flag_t = i
+        for j in range(0, features_nrows):
+            S[j][flag_t] = feature.cell(j, flag_t).value
+        # print(flag_a)
+        flag_cov.append(flag_t)
+    print(flag_cov)
+    print(S)
