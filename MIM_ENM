@@ -1,0 +1,121 @@
+import numpy as np
+import xlrd
+import math
+import pandas as pd
+from sklearn.model_selection import KFold
+import matlab.engine
+
+
+kf = KFold(n_splits=10, shuffle=True)
+
+
+workbook = xlrd.open_workbook(r'SJAFFE_feature_test.xlsx')
+workbook2 = xlrd.open_workbook(r'SJAFFE_labels_test.xlsx')
+# print(workbook2.sheet_names())#输出页签名r
+
+feature = workbook.sheet_by_name('features')
+labels = workbook2.sheet_by_name('labels')
+features_nrows = feature.nrows
+feature_ncols = feature.ncols
+features_nrows = labels.nrows
+labels_ncols = labels.ncols
+
+
+
+def fun_maxC(i):
+    r = np.zeros([features_nrows, features_nrows])
+    rD = np.zeros([features_nrows, features_nrows])
+    r_new = np.zeros([features_nrows, features_nrows])
+# for i in range(0, feature_ncols):
+    max = 0
+    min = 999
+    sumk1 = np.empty([features_nrows, 1])
+    for t in range(0, features_nrows):
+        if feature.cell(t, i).value > max:
+            max = feature.cell(t, i).value
+        if feature.cell(t, i).value < min:
+            min = feature.cell(t, i).value
+    for j in range(0, features_nrows):
+        sum4 = 0
+        for k in range(0, features_nrows):
+            if abs(feature.cell(j, i).value - feature.cell(k, i).value) / abs(max - min) <= 0.25:
+                r[j][k] = 1 - 4 * abs(feature.cell(j, i).value - feature.cell(k, i).value) / abs(max - min)
+                r[k][j] = 1 - 4 * abs(feature.cell(j, i).value - feature.cell(k, i).value) / abs(max - min)
+                sum4 = sum4 + r[j][k]
+            else:
+                r[j][k] = 0
+                r[k][j] = 0
+                # sum4 = sum4 + r[j][k]
+
+        sumk1[j][0] = sum4
+
+
+    sum6 = 0
+    maxC1 = 0
+    for m in range(0, labels_ncols):
+        for j in range(0, features_nrows):
+            for k in range(0, features_nrows):
+                if abs(labels.cell(j, m).value - labels.cell(k, m).value) <= 0.25:
+                    rD[k][j] = 1 - 4 * abs(labels.cell(j, m).value - labels.cell(k, m).value)
+                    rD[j][k] = 1 - 4 * abs(labels.cell(j, m).value - labels.cell(k, m).value)
+                else:
+                    rD[j][k] = 0
+                    rD[k][j] = 0
+        #信息量
+        sum1 = 0
+        sum2 = 0
+        for j in range(0, features_nrows):
+            sum1 = 0
+            for k in range(0, features_nrows):
+                sum1 = sum1 + rD[j][k]
+            sum2 = sum2 + math.log(sum1 / features_nrows)
+        H_RD = -1 * sum2 / features_nrows
+
+        sum3 = 0
+        sum5 = 0
+        for j in range(0, features_nrows):
+            sum3 = 0
+            for k in range(0, features_nrows):
+                if r[j][k] < rD[j][k]:
+                    r_new[j][k] = r[j][k]
+                else:
+                    r_new[j][k] = rD[j][k]
+                sum3 = sum3 + r_new[j][k]
+            sum5 = sum5 + math.log(sum3 / sumk1[j][0])
+        #H(D|B)
+        sum6 = -1 * sum5 / features_nrows
+        #MI(ai; dj)
+        maxC1 = maxC1 + pow((H_RD - sum6), 2)
+    maxC2 = math.sqrt(maxC1)
+    # maxC.append(maxC2)
+    return maxC2
+
+if __name__=="__main__":
+    max = 0
+    flag = 0
+    flag_new = []
+    flag_MC = []
+    s = 8
+    t = 0
+    S = np.zeros([features_nrows, s])
+    for i in range(0, feature_ncols):
+        maxCC2 = fun_maxC(i)
+        flag_MC.append(maxCC2)
+    print(flag_MC)
+    while s > 0:
+        max = 0
+        for i in range(0, feature_ncols):
+
+            if flag_MC[i] > max:
+                max = flag_MC[i]
+                flag = i
+        for j in range(0, features_nrows):
+            S[j][t] = feature.cell(j, flag).value
+        flag_new.append(flag)
+        flag_MC[flag] = -1
+        # flag_MC.drop([flag], axis = 1)
+        s -= 1
+        t += 1
+    print(flag_new)
+    print(S)
+
